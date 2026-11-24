@@ -29,7 +29,6 @@
 #include "labels.h"
 #include "refresh_policy.h"
 #include "memory_trim.h"
-#include "report.h"
 #include "rename_dialog.h"
 #include "offset_dialog.h"
 #include "widget.h"
@@ -56,7 +55,7 @@ constexpr UINT PLACEHOLDER_ID = 1;
 constexpr UINT ALERT_ICON_ID = 2;
 
 enum MenuId : UINT {
-    ID_REFRESH = 100, ID_AUTOSTART, ID_HIDE_LAST_KNOWN, ID_WIDGET_BACKGROUND, ID_EXIT, ID_MODE_WIDGET, ID_MODE_TRAY, ID_SUPPORT, ID_REPORT,
+    ID_REFRESH = 100, ID_AUTOSTART, ID_HIDE_LAST_KNOWN, ID_WIDGET_BACKGROUND, ID_EXIT, ID_MODE_WIDGET, ID_MODE_TRAY,
     ID_BRAND_COLORS, ID_STACKED, ID_SHOW_DISCONNECTED, ID_RECORD_HISTORY, ID_DIM_SLEEPING,
     ID_TRAY_WHEN_EMPTY, ID_MAKE_ROOM, ID_FAR_LEFT, ID_PERCENT_SIGN, ID_RING_STYLE, ID_BEFORE_APPS, ID_CONNECTION_ICONS, ID_KEEP_MOUSE_LAST_KNOWN,
     ID_PLACE_AUTO, ID_PLACE_TOP, ID_PLACE_TRAY, ID_PLACE_BOTTOM,  // "Position on a vertical taskbar"
@@ -1339,8 +1338,6 @@ void ShowMenu() {
     }
     AppendMenuW(m, MF_STRING, ID_REFRESH, T(L"Refresh now"));
     AppendMenuW(m, MF_STRING | (AutostartEnabled() ? MF_CHECKED : 0), ID_AUTOSTART, T(L"Start with Windows"));
-    AppendMenuW(m, MF_STRING, ID_REPORT, T(L"Request support for a device..."));
-    AppendMenuW(m, MF_STRING, ID_SUPPORT, T(L"Support the project..."));
     AppendMenuW(m, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(m, MF_STRING | (updates::Busy() ? MF_GRAYED : 0), ID_UPDATE, updates::MenuLabel().c_str());
     UINT updateFlags = MF_STRING | (updates::AutomaticEnabled() ? MF_CHECKED : 0) |
@@ -1349,8 +1346,6 @@ void ShowMenu() {
     AppendMenuW(m, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(m, MF_STRING, ID_EXIT, T(L"Exit"));
     icons.Set(m, ID_REFRESH, false, 0xE72C);         // Refresh
-    icons.Set(m, ID_REPORT, false, 0xE897);          // Help
-    icons.Set(m, ID_SUPPORT, false, 0xEB51);         // Heart
     icons.Set(m, ID_UPDATE, false, 0xE777);          // UpdateRestore
     icons.Set(m, ID_EXIT, false, 0xE711);            // Cancel
     POINT pt;
@@ -1408,8 +1403,6 @@ void ShowMenu() {
             break;
         case ID_MODE_WIDGET: SetMode(true); break;
         case ID_MODE_TRAY: SetMode(false); break;
-        case ID_SUPPORT: ShellExecuteW(nullptr, L"open", L"https://github.com/sponsors/krisgfx9", nullptr, nullptr, SW_SHOWNORMAL); break;
-        case ID_REPORT: report::Show(g_inst, g_hwnd); break;
         case ID_UPDATE: updates::Activate(g_hwnd); break;
         case ID_AUTO_UPDATE: updates::ToggleAutomatic(); break;
         case ID_EXIT: DestroyWindow(g_hwnd); break;
@@ -1812,7 +1805,6 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR cmdLine, int) {
                     L"--list   Print devices and battery levels\n"
                     L"--json   Print a JSON array of devices and battery levels\n"
                     L"--dump   Print every HID collection and device\n"
-                    L"--report Open the \"Request support for a device\" window\n"
                     L"--demo   Show sample devices\n"
                     L"--quit   Quit a running instance",
                     L"BatteryHub", MB_OK | MB_ICONINFORMATION);
@@ -1825,17 +1817,6 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR cmdLine, int) {
     if (applyResult >= 0) return applyResult;
     if (cmdLine && wcsstr(cmdLine, L"--list")) return ListToConsole(false);
     if (cmdLine && wcsstr(cmdLine, L"--dump")) return ListToConsole(true);
-    if (cmdLine && wcsstr(cmdLine, L"--report")) {  // the "Request support for a device" window on its own
-        i18n::Init();
-        report::Show(inst, nullptr);
-        MSG msg;
-        while (GetMessageW(&msg, nullptr, 0, 0) > 0) {
-            if (report::PreTranslate(&msg)) continue;
-            TranslateMessage(&msg);
-            DispatchMessageW(&msg);
-        }
-        return 0;
-    }
     if (cmdLine && wcsstr(cmdLine, L"--quit")) {  // used by the installer before upgrading/uninstalling
         if (HWND w = FindWindowW(L"WirelessBatteryWnd", nullptr)) {
             DWORD pid = 0;
@@ -1925,7 +1906,6 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR cmdLine, int) {
 
     MSG m;
     while (GetMessageW(&m, nullptr, 0, 0) > 0) {
-        if (report::PreTranslate(&m)) continue;
         TranslateMessage(&m);
         DispatchMessageW(&m);
     }

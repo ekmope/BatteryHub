@@ -2,13 +2,8 @@
 
 *Formerly **Wireless Battery**. Version 1.1.0 renamed the app; an update keeps your settings, startup choice and battery history.*
 
-[![Support me on Ko-fi](https://img.shields.io/badge/Ko--fi-Support%20me-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/krisgfx)
-[![Donate with PayPal](https://img.shields.io/badge/PayPal-Donate-00457C?logo=paypal&logoColor=white)](https://www.paypal.com/paypalme/krisgfx)
-[![GitHub Sponsors](https://img.shields.io/badge/GitHub-Sponsor-EA4AAA?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/krisgfx9)
-[![Join our Discord](https://img.shields.io/badge/Discord-Join%20us-5865F2?logo=discord&logoColor=white)](https://discord.gg/ZgDDUPP8ye)
 [![Star on GitHub](https://img.shields.io/github/stars/ekmope/BatteryHub?style=flat&logo=github&label=Star)](https://github.com/ekmope/BatteryHub)
 [![Share on Reddit](https://img.shields.io/badge/Reddit-Share-FF4500?logo=reddit&logoColor=white)](https://www.reddit.com/submit?url=https%3A%2F%2Fgithub.com%2Fekmope%2FBatteryHub&title=BatteryHub%3A%20battery%20levels%20of%20your%20wireless%20devices%20on%20the%20Windows%20taskbar)
-[![Report a device](https://img.shields.io/badge/Report-a%20device-2EA44F?logo=github&logoColor=white)](https://github.com/ekmope/BatteryHub/issues/new)
 [![Help translate](https://img.shields.io/badge/Help-translate-6F42C1?logo=googletranslate&logoColor=white)](https://github.com/ekmope/BatteryHub/tree/main/lang)
 
 Battery levels of your wireless mouse, headset, keyboard and controller, right on the Windows taskbar.
@@ -18,8 +13,6 @@ Battery levels of your wireless mouse, headset, keyboard and controller, right o
 > **Just want it working?** Download **[BatteryHub-Setup](https://github.com/ekmope/BatteryHub/releases/latest)** from the latest release. Use the per-user installation for setup without administrator rights; see the [installation notes](#install) for unsigned-app warnings and the all-users option.
 >
 > **Experienced users** can grab the portable zip, use the [command-line options](#command-line), or [build it from source](#build) with `make` or `build.bat`.
->
-> **Like it?** BatteryHub is free and open source. If it saves you a trip into vendor software, you can support it on [Ko-fi](https://ko-fi.com/krisgfx), [PayPal](https://www.paypal.com/paypalme/krisgfx) or [GitHub Sponsors](https://github.com/sponsors/krisgfx9). It helps me keep my apps free alongside my studies. Not able to donate? A ⭐ star, sharing it, or reporting an unsupported device with a `--dump` helps just as much.
 
 - **Tiny**: a ~350 KB app using about 2 MB of RAM. It's plain C++/Win32, with no runtime and no background service, and supports per-user installation without administrator rights.
 - **Vendor apps usually aren't required**: most drivers query devices directly. Some headsets use the bundled [HeadsetControl](https://github.com/Sapd/HeadsetControl) helper. Device-specific setup, firmware patches and conflicts with vendor apps are described in the table and [Limitations](#limitations).
@@ -322,7 +315,6 @@ BatteryHub.exe --list     # print every device and its battery level, then exit
 BatteryHub.exe --json     # print a JSON array of devices and battery levels, then exit
 BatteryHub.exe --dump     # every HID collection, HID devices that could not be opened, all USB devices (also ones
                                # without a HID interface) and Bluetooth devices; also saved to %TEMP%\BatteryHub-dump.txt
-BatteryHub.exe --report   # open the "Request support for a device" window
 BatteryHub.exe --demo     # sample devices of every brand instead of real ones (screenshots, checking colors)
 BatteryHub.exe --quit     # close the running instance
 ```
@@ -338,14 +330,6 @@ also accepts `--help`. `--json` prints a stable array that scripts and bar widge
 
 `graceSec` is how long the app keeps showing the last known level while the device is asleep.
 Adding new fields is backwards compatible.
-
-**Device not shown?** Right-click the widget or tray icon and choose **Request support for a device...**. Pick the device, check
-what will be sent (it is shown word for word: the device name, its type, its USB/HID ids and interface layout, and your optional
-name and notes) and click **Send**. It goes on the public list at [krisgfx.com/tools](https://krisgfx.com/tools/#requested) and
-opens or updates a GitHub issue. **Copy full report** puts the complete `--dump` on the clipboard for the issue.
-Report data is sent only when you click Send. Official Windows builds can also contact GitHub
-to check for updates, as described in [Updates on Windows](#updates-on-windows); update checks
-do not send device or battery information.
 
 ## Build
 
