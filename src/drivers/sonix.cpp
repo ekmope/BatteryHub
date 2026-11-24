@@ -14,9 +14,10 @@
 // as "Valkyrie 75" and exposes a vendor collection FF13:0001 (65/65/65) that carries no battery
 // field. Captured on 2026-11-24: the vendor driver sends no HID request to that collection at all
 // (25 s and 3 min USB captures, page switches included), feature writes only echo back, and every
-// command probed (F7, 20 01, 01..0F, F6, FA) returns the mirror of the request. A cable-connected
-// board is therefore reported as charging with no fresh level, instead of leaving the dongle row to
-// time out into "asleep" while the receiver has no link.
+// command probed (F7, 20 01, 01..0F, F6, FA) returns the mirror of the request. The cable is used
+// for the charging mark only: the level still comes from the dongle whenever its radio answers
+// (measured 89% with the cable in), and a silent dongle on the cable keeps the last value instead
+// of turning the row into "asleep".
 // The protocol is read-only.
 // MCHOSE K87 receivers on the same 05AC:024F id expose a different layout (the BY collection on
 // interface 1, no FF60 on interface 3); aula.cpp runs first and reads those.
@@ -100,22 +101,10 @@ bool IsCableCollection(const HidColl& c) {
 }  // namespace
 
 void PollSonix(PollContext& ctx) {
-    // Cable mode comes first: the board is the same device as the dongle below, so it keeps the
-    // same key (history and tray order survive a mode switch). While it is on the cable the
-    // dongle has no link, and the cable collection has no level, so report "charging" instead of
-    // letting the receiver row time out into "asleep".
-    for (const HidColl* c : ctx.Find(0x05AC, 0x024F, IsCableCollection)) {
-        DeviceStatus s;
-        s.key = L"sonix:" + Hex4(0x05AC) + L":" + Hex4(0x024F);
-        s.name = HidProduct(*c);
-        if (s.name.empty()) s.name = L"VK 75";
-        s.kind = DeviceKind::Keyboard;
-        s.via = L"USB cable";
-        s.charging = true;  // on USB power; the board does not report a level in this mode
-        s.graceSec = 1800;
-        ctx.Add(s, 0x05AC, 0x024F);
-        return;
-    }
+    // The board may also be on its USB-C cable: it then enumerates as "Valkyrie 75" with a vendor
+    // collection FF13:0001, which has no battery field (see the note at the top). Charging state
+    // comes from that cable, the level still comes from the dongle when the radio answers.
+    const bool cable = !ctx.Find(0x05AC, 0x024F, IsCableCollection).empty();
     for (const Dongle& m : kDongles) {
         if (ctx.IsClaimed(m.vid, m.pid)) continue;
         for (const HidColl* c : ctx.Find(m.vid, m.pid, [&m](const HidColl& c) {
@@ -135,9 +124,25 @@ void PollSonix(PollContext& ctx) {
             s.via = L"2.4 GHz receiver";
             s.connected = level >= 1 && level <= 100;  // 0: keyboard off, out of range or in another mode
             if (s.connected) s.percent = level;
+            if (cable) s.charging = true;  // the cable is in as well: on USB power
             s.graceSec = 1800;  // keep the last value if a sleeping keyboard stops answering
             ctx.Add(s, m.vid, m.pid);
-            break;
+            return;
         }
     }
+    // The dongle said nothing: on the cable that is the normal case (the board switched its radio
+    // off), so show "charging" with no fresh level rather than letting the stale row turn "asleep".
+    if (cable)
+        for (const HidColl* c : ctx.Find(0x05AC, 0x024F, IsCableCollection)) {
+            DeviceStatus s;
+            s.key = L"sonix:" + Hex4(0x05AC) + L":" + Hex4(0x024F);
+            s.name = HidProduct(*c);
+            if (s.name.empty()) s.name = L"VK 75";
+            s.kind = DeviceKind::Keyboard;
+            s.via = L"USB cable";
+            s.charging = true;
+            s.graceSec = 1800;
+            ctx.Add(s, 0x05AC, 0x024F);
+            return;
+        }
 }

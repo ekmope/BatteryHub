@@ -136,15 +136,22 @@ int main() {
     // "Valkyrie 75" and exposes only FF13:0001, which has no battery field. Report "charging" with no
     // level instead of leaving the unlinked dongle row to time out into "asleep".
     {
+        // Cable only, radio off: the vendor collection has no level, so report "charging".
         auto ctx = PollMany({Cable()}, {});
         assert(ctx.out.size() == 1);
         assert(ctx.out[0].key == L"sonix:05AC:024F");
         assert(ctx.out[0].percent == -1 && ctx.out[0].connected && ctx.out[0].charging);
         assert(ctx.out[0].via == L"USB cable" && ctx.out[0].graceSec == 1800);
         assert(opens == 0 && writes == 0);  // nothing is sent to the vendor collection
-        // Cable in with the dongle still plugged: one row, and the dongle is not probed.
-        auto both = PollMany({Cable(), Collection(0x05AC, 0x024F, 3)}, {{0x20, 1, 0, 73}});
-        assert(both.out.size() == 1 && both.out[0].percent == -1 && opens == 0 && writes == 0);
+        // Cable in and the dongle still answers (measured 2026-11-24: 89% while charging): the level
+        // stays live, the cable only adds the charging mark.
+        auto both = PollMany({Cable(), Collection(0x05AC, 0x024F, 3)}, {{0x20, 1, 0, 89}});
+        assert(both.out.size() == 1 && both.out[0].percent == 89 && both.out[0].charging);
+        assert(both.out[0].via == L"2.4 GHz receiver" && writes == 1);
+        // Cable in, dongle silent: fall back to the cable row instead of leaving the tray to guess.
+        auto silent = PollMany({Cable(), Collection(0x05AC, 0x024F, 3)}, {});
+        assert(silent.out.size() == 1 && silent.out[0].percent == -1 && silent.out[0].charging);
+        assert(writes == 2);
         // Anything else on 05AC:024F is not this board: fall through to the dongle protocol.
         for (int fault = 0; fault < 4; ++fault) {
             auto w = Cable();
