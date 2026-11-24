@@ -37,6 +37,19 @@ static PollContext Poll(HidColl collection, std::deque<std::vector<BYTE>> input)
     opens = writes = 0; replies = input;
     PollContext ctx; ctx.colls = {collection}; PollSonix(ctx); return ctx;
 }
+// VALKYRIE VK 75 on its USB-C cable: MI_02 exposes only FF13:0001 (64-byte in/out/feature).
+static HidColl Cable() {
+    HidColl c; c.vid = 0x05AC; c.pid = 0x024F; c.iface = 2;
+    c.caps.UsagePage = 0xFF13; c.caps.Usage = 1;
+    c.caps.InputReportByteLength = 65;
+    c.caps.OutputReportByteLength = 65;
+    c.caps.FeatureReportByteLength = 65;
+    return c;
+}
+static PollContext PollMany(std::vector<HidColl> colls, std::deque<std::vector<BYTE>> input) {
+    opens = writes = 0; replies = input;
+    PollContext ctx; ctx.colls = colls; PollSonix(ctx); return ctx;
+}
 int main() {
     for (auto id : {std::pair<USHORT, USHORT>{0x05AC, 0x024F},
         {0x0C45, 0xFEFE},
@@ -118,5 +131,31 @@ int main() {
     assert(Poll(Collection(), {}).out.empty() && writes == 0);
     openOk = true; writeOk = false;
     assert(Poll(Collection(), {}).out.empty() && writes == 2);
-    puts("SONiX driver tests passed (22 receiver IDs, RSQ and Galaxy100 interface filtering)");
+
+    // VALKYRIE VK 75 plugged in over the USB-C cable (captured 2026-11-24): the board enumerates as
+    // "Valkyrie 75" and exposes only FF13:0001, which has no battery field. Report "charging" with no
+    // level instead of leaving the unlinked dongle row to time out into "asleep".
+    {
+        auto ctx = PollMany({Cable()}, {});
+        assert(ctx.out.size() == 1);
+        assert(ctx.out[0].key == L"sonix:05AC:024F");
+        assert(ctx.out[0].percent == -1 && ctx.out[0].connected && ctx.out[0].charging);
+        assert(ctx.out[0].via == L"USB cable" && ctx.out[0].graceSec == 1800);
+        assert(opens == 0 && writes == 0);  // nothing is sent to the vendor collection
+        // Cable in with the dongle still plugged: one row, and the dongle is not probed.
+        auto both = PollMany({Cable(), Collection(0x05AC, 0x024F, 3)}, {{0x20, 1, 0, 73}});
+        assert(both.out.size() == 1 && both.out[0].percent == -1 && opens == 0 && writes == 0);
+        // Anything else on 05AC:024F is not this board: fall through to the dongle protocol.
+        for (int fault = 0; fault < 4; ++fault) {
+            auto w = Cable();
+            if (fault == 0) w.iface = 1;
+            if (fault == 1) w.caps.Usage = 2;
+            if (fault == 2) --w.caps.FeatureReportByteLength;
+            if (fault == 3) w.caps.UsagePage = 0xFF60;
+            assert(PollMany({w}, {}).out.empty() && opens == 0);
+        }
+        // The real dongle tuple (MI_03, FF60:0061, 33/33) keeps working when the cable is out.
+        assert(Poll(Collection(0x05AC, 0x024F, 3), {{0x20, 1, 0, 73}}).out.size() == 1);
+    }
+    puts("SONiX driver tests passed (22 receiver IDs, RSQ and Galaxy100 interface filtering, VK 75 cable)");
 }

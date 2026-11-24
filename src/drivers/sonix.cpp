@@ -10,6 +10,13 @@
 //   reply   [20 01 00 level ...]        level in percent
 // A reply is recognised by its first three bytes (the echoed command), as the AK820 Pro tools do; its
 // checksum is not checked. The keyboard only reports its level while it is switched to 2.4G mode.
+// VALKYRIE VK 75 (05AC:024F) is the same id: with the USB-C cable plugged in the board enumerates
+// as "Valkyrie 75" and exposes a vendor collection FF13:0001 (65/65/65) that carries no battery
+// field. Captured on 2026-11-24: the vendor driver sends no HID request to that collection at all
+// (25 s and 3 min USB captures, page switches included), feature writes only echo back, and every
+// command probed (F7, 20 01, 01..0F, F6, FA) returns the mirror of the request. A cable-connected
+// board is therefore reported as charging with no fresh level, instead of leaving the dongle row to
+// time out into "asleep" while the receiver has no link.
 // The protocol is read-only.
 // MCHOSE K87 receivers on the same 05AC:024F id expose a different layout (the BY collection on
 // interface 1, no FF60 on interface 3); aula.cpp runs first and reads those.
@@ -83,9 +90,32 @@ std::wstring KeyboardName(const HidColl& c) {
     return name.empty() ? L"Wireless keyboard" : name;
 }
 
+// VALKYRIE VK 75 on its cable: interface 2 exposes only the vendor collection FF13:0001
+// (64-byte in/out/feature reports), which has no battery field. See the note at the top.
+bool IsCableCollection(const HidColl& c) {
+    return c.iface == 2 && c.page() == 0xFF13 && c.usage() == 0x0001 &&
+           c.inLen() == 65 && c.outLen() == 65 && c.featLen() == 65;
+}
+
 }  // namespace
 
 void PollSonix(PollContext& ctx) {
+    // Cable mode comes first: the board is the same device as the dongle below, so it keeps the
+    // same key (history and tray order survive a mode switch). While it is on the cable the
+    // dongle has no link, and the cable collection has no level, so report "charging" instead of
+    // letting the receiver row time out into "asleep".
+    for (const HidColl* c : ctx.Find(0x05AC, 0x024F, IsCableCollection)) {
+        DeviceStatus s;
+        s.key = L"sonix:" + Hex4(0x05AC) + L":" + Hex4(0x024F);
+        s.name = HidProduct(*c);
+        if (s.name.empty()) s.name = L"VK 75";
+        s.kind = DeviceKind::Keyboard;
+        s.via = L"USB cable";
+        s.charging = true;  // on USB power; the board does not report a level in this mode
+        s.graceSec = 1800;
+        ctx.Add(s, 0x05AC, 0x024F);
+        return;
+    }
     for (const Dongle& m : kDongles) {
         if (ctx.IsClaimed(m.vid, m.pid)) continue;
         for (const HidColl* c : ctx.Find(m.vid, m.pid, [&m](const HidColl& c) {
