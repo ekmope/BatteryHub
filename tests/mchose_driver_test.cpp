@@ -1,19 +1,31 @@
-// Exercise the feature-report driver with a status reply captured from an L7 Ultra+ receiver.
+// Exercise the feature-report driver with status replies captured from real receivers.
 #include "../src/drivers/drivers.h"
 
 #include <algorithm>
 #include <cassert>
 #include <cstdio>
+#include <map>
 
 namespace {
+// MCHOSE L7 Ultra+ on the shared 5253:1020 receiver: its status block came back on report 0x12, 81%.
 const std::vector<BYTE> l7UltraPlus = {
     0x12, 0xF9, 0xC8, 0xC7, 0xE9, 0xBF, 0xDD, 0xFA, 0xFA, 0xFF, 0xF6, 0xAE, 0xFF, 0xA9
 };
-std::vector<BYTE> reply;
+// MCHOSE A7 Ultra (RE) (issue 832) on the same receiver: report 0x12 only echoes zeros while the
+// block arrives on the short report 0x11 - 58%, link 09 (receiver, connected), not charging.
+// Captured from the device on 2026-11-24 (105 consecutive identical replies).
+const std::vector<BYTE> a7UltraRe = {
+    0x11, 0xF9, 0xC8, 0xC7, 0xEF, 0xBE, 0xE5, 0xFA, 0xFA, 0xFF, 0xF6, 0xC5, 0xFF
+};
+// A report id that answers but carries nothing: the request echoed with an all-zero payload.
+std::vector<BYTE> EmptyEcho(BYTE rid) { return { rid, 0xF9 }; }
 
-PollContext Poll(USHORT vid, USHORT pid, std::vector<BYTE> status) {
-    reply = status;
-    reply.resize(65, 0xFF);
+std::map<BYTE, std::vector<BYTE>> replies;
+std::vector<BYTE> asked;
+
+PollContext Poll(USHORT vid, USHORT pid, std::map<BYTE, std::vector<BYTE>> status) {
+    replies = status;
+    asked.clear();
     HidColl c;
     c.vid = vid;
     c.pid = pid;
@@ -30,16 +42,19 @@ PollContext Poll(USHORT vid, USHORT pid, std::vector<BYTE> status) {
 bool HidDev::OpenFeatureOnly(const HidColl&) { return true; }
 void HidDev::Close() {}
 bool HidDev::SetFeature(const std::vector<BYTE>& data) {
-    assert(data.size() == 65 && data[0] == 0x12 && data[1] == 0xF9);
+    assert(data.size() == 65 && data[1] == 0xF9);  // status command 0x06, inverted
     assert(std::all_of(data.begin() + 2, data.end(), [](BYTE b) { return b == 0xFF; }));
+    asked.push_back(data[0]);
     return true;
 }
 bool HidDev::GetFeature(BYTE reportId, std::vector<BYTE>& out) {
-    assert(reportId == 0x12);
-    out = reply;
+    auto it = replies.find(reportId);
+    if (it == replies.end()) return false;  // that report id does not answer at all
+    out = it->second;
+    out.resize(65, 0xFF);
     return true;
 }
-std::wstring HidProduct(const HidColl&) { return L"MCHOSE L7 Ultra+"; }
+std::wstring HidProduct(const HidColl&) { return L"MCHOSE A7 Ultra(RE)"; }
 std::wstring Hex4(USHORT v) {
     wchar_t text[8];
     swprintf(text, 8, L"%04X", v);
@@ -48,26 +63,49 @@ std::wstring Hex4(USHORT v) {
 int Clamp100(int v) { return std::clamp(v, 0, 100); }
 
 int main() {
-    auto ctx = Poll(0x5253, 0x1020, l7UltraPlus);
+    // L7 Ultra+ answers on the long report only; the short report stays silent.
+    auto ctx = Poll(0x5253, 0x1020, { { 0x12, l7UltraPlus } });
+    assert(ctx.IsClaimed(0x5253, 0x1020) && ctx.out.size() == 1);
+    assert(ctx.out.front().percent == 81 && !ctx.out.front().charging && !ctx.out.front().asleep);
+    assert(ctx.out.front().via == L"2.4 GHz receiver" && ctx.out.front().key == L"mchose:1020");
+
+    // A7 Ultra (RE): 0x12 only echoes zeros, the real block is on 0x11. The driver asks 0x11 first,
+    // so the long report never decides the outcome.
+    ctx = Poll(0x5253, 0x1020, { { 0x11, a7UltraRe }, { 0x12, EmptyEcho(0x12) } });
     assert(ctx.IsClaimed(0x5253, 0x1020) && ctx.out.size() == 1);
     const auto& mouse = ctx.out.front();
-    assert(mouse.name == L"MCHOSE L7 Ultra+" && mouse.key == L"mchose:1020");
-    assert(mouse.percent == 81 && !mouse.charging && !mouse.asleep);
-    assert(mouse.via == L"2.4 GHz receiver" && mouse.kind == DeviceKind::Mouse);
+    assert(mouse.percent == 58 && !mouse.charging && !mouse.asleep);
+    assert(mouse.via == L"2.4 GHz receiver" && mouse.name == L"MCHOSE A7 Ultra(RE)");
+    assert(asked.front() == 0x11);
 
-    // A different paired model or USB product must not inherit the L7 Ultra+ exception.
-    auto other = l7UltraPlus;
-    other[4] ^= 1;
-    assert(Poll(0x5253, 0x1020, other).out.empty());
-    assert(Poll(0x5253, 0x1021, l7UltraPlus).out.empty());
+    // Both channels asleep: claimed, reported as asleep, no level.
+    ctx = Poll(0x5253, 0x1020, { { 0x11, EmptyEcho(0x11) }, { 0x12, EmptyEcho(0x12) } });
+    assert(ctx.out.size() == 1 && ctx.out.front().asleep);
+
+    // Neither channel answers: another driver may still handle the device.
+    assert(Poll(0x5253, 0x1020, {}).out.empty());
+
+    // A different model behind the shared receiver must not inherit the whitelisted identity.
+    auto otherModel = a7UltraRe;
+    otherModel[4] ^= 1;  // payload byte 2 = model id, low byte
+    assert(Poll(0x5253, 0x1020, { { 0x11, otherModel } }).out.empty());
+    assert(Poll(0x5253, 0x1021, { { 0x11, a7UltraRe } }).out.empty());
+
+    // Wired: connectMode 0 in the link byte, charging set.
+    auto cable = l7UltraPlus;
+    cable[10] = 0xFF;  // link byte 0 -> cable
+    cable[12] = 0xFE;  // charge status 1
+    ctx = Poll(0x5253, 0x1020, { { 0x12, cable } });
+    assert(ctx.out.size() == 1 && ctx.out.front().via == L"USB cable" && ctx.out.front().charging);
 
     // Existing mice identify themselves with VID 5253; Realtek receivers can return 3837 or 41E4.
-    assert(Poll(0x3837, 0x1001, other).out.size() == 1);
-    other[2] = 0xE4 ^ 0xFF;
-    other[3] = 0x41 ^ 0xFF;
-    assert(Poll(0x3837, 0x100C, other).out.size() == 1);
-    other[2] = 0x53 ^ 0xFF;
-    other[3] = 0x52 ^ 0xFF;
-    assert(Poll(0x5253, 0x1020, other).out.size() == 1);
+    auto pairedRealtek = l7UltraPlus;
+    assert(Poll(0x3837, 0x1001, { { 0x12, pairedRealtek } }).out.size() == 1);
+    pairedRealtek[2] = 0xE4 ^ 0xFF;
+    pairedRealtek[3] = 0x41 ^ 0xFF;
+    assert(Poll(0x3837, 0x100C, { { 0x12, pairedRealtek } }).out.size() == 1);
+    pairedRealtek[2] = 0x53 ^ 0xFF;
+    pairedRealtek[3] = 0x52 ^ 0xFF;
+    assert(Poll(0x5253, 0x1020, { { 0x12, pairedRealtek } }).out.size() == 1);
     puts("MCHOSE feature-report driver tests passed");
 }
