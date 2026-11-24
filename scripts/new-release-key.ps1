@@ -4,7 +4,7 @@
 # key into src\update_public_key.h, which you commit. Builds made after that only install updates
 # signed with this key (scripts\sign-release.ps1).
 param(
-    [string]$KeyFile = (Join-Path $env:USERPROFILE '.wirelessbattery\release-key.wbk'),
+    [string]$KeyFile = (Join-Path $env:USERPROFILE '.batteryhub\release-key.wbk'),
     [string]$PublicKeyHeader = (Join-Path (Split-Path $PSScriptRoot -Parent) 'src\update_public_key.h'),
     [Security.SecureString]$Password  # for tests; normally asked for
 )

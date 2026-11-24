@@ -158,7 +158,7 @@ def main():
     ap.add_argument("--tag", required=True)
     ap.add_argument("--ref")
     ap.add_argument("--prev")
-    ap.add_argument("--repo", default=os.environ.get("GITHUB_REPOSITORY", "krisgfx9/Wireless-Device-Battery-Monitor"))
+    ap.add_argument("--repo", default=os.environ.get("GITHUB_REPOSITORY", "ekmope/BatteryHub"))
     ap.add_argument("--dry-run", action="store_true")
     a = ap.parse_args()
     ref = a.ref or a.tag

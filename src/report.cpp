@@ -319,7 +319,7 @@ std::string RequestJson(const Request& r) {
 // POSTs the JSON body. Returns the HTTP status (0 = could not reach the server) and the reply body.
 int Post(const std::string& body, std::string& reply) {
     int status = 0;
-    HINTERNET s = WinHttpOpen(L"WirelessBattery", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
+    HINTERNET s = WinHttpOpen(L"BatteryHub", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if (!s) return 0;
     WinHttpSetTimeouts(s, 10000, 10000, 15000, 15000);
     HINTERNET c = WinHttpConnect(s, kApiHost, INTERNET_DEFAULT_HTTPS_PORT, 0);

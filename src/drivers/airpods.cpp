@@ -19,6 +19,7 @@
 // strongest recent signal wins.
 #include "drivers.h"
 #include "ble_adverts.h"
+#include "../i18n.h"
 
 #include <setupapi.h>
 #include <initguid.h>
@@ -276,8 +277,9 @@ void PollAirPods(PollContext& ctx) {
                 s.percent = a.box;
                 s.charging = a.boxChg;
             }
-            s.via = L"Bluetooth \x00B7 L " + Pct(a.left) + (a.leftChg ? L"\x26A1" : L"") + L"  R " + Pct(a.right) +
-                    (a.rightChg ? L"\x26A1" : L"") + L"  case " + Pct(a.box) + (a.boxChg ? L"\x26A1" : L"");
+            s.via = std::wstring(T(L"Bluetooth")) + L" \x00B7 L " + Pct(a.left) + (a.leftChg ? L"\x26A1" : L"") +
+                    L"  R " + Pct(a.right) + (a.rightChg ? L"\x26A1" : L"") + L"  " + T(L"case") + L" " +
+                    Pct(a.box) + (a.boxChg ? L"\x26A1" : L"");
         }
         s.graceSec = d.connected ? 300 : 0;
         ctx.out.push_back(s);

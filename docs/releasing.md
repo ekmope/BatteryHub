@@ -11,7 +11,7 @@ powershell -ExecutionPolicy Bypass -File scripts\new-release-key.ps1
 ```
 
 - Asks for a password (12+ characters) and writes the encrypted private key to
-  `%USERPROFILE%\.wirelessbattery\release-key.wbk`.
+  `%USERPROFILE%\.batteryhub\release-key.wbk`.
 - Puts the public key into `src\update_public_key.h`. Commit that file. Official builds refuse
   to compile without a key in it.
 - **Back up the key file and keep the password** (a password manager is a good place for both).

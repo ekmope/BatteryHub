@@ -209,3 +209,44 @@ BatteryHub could not reopen. Please start it manually or repair the installation
 BatteryHub is up to date. = BatteryHub 已是最新版本。
 BatteryHub update = BatteryHub 更新
 BatteryHub will close briefly while the update is installed. = 安裝更新期間 BatteryHub 將短暫關閉。
+
+# Display, taskbar position, connection and charge-limit phrases (1.1.x)
+Show percent sign (%) = 顯示百分號（%）
+Ring style (icon inside a battery ring) = 圓環樣式（圖示位於電池圓環內）
+Mark devices on a 2.4 GHz receiver = 標記 2.4 GHz 接收器上的裝置
+Keep last known battery for mice = 為滑鼠保留上次已知電量
+Move to tray when no devices = 無裝置時移至系統匣
+Dim sleeping devices = 淡化休眠裝置
+Display settings = 顯示選項
+Position on the taskbar = 工作列上的位置
+Position on a vertical taskbar = 垂直工作列上的位置
+Next to the notification area = 通知區域旁
+Above the notification area = 通知區域上方
+Top of the taskbar = 工作列頂端
+Bottom of the taskbar (moves the taskbar icons up, Windows 11) = 工作列底部（將工作列圖示上移，Windows 11）
+At the left end of the taskbar = 工作列最左端
+Just before the taskbar apps = 緊鄰工作列應用程式之前
+Automatic (keeps clear of app icons) = 自動（避開應用程式圖示）
+Make room for other taskbar widgets = 為其他工作列小工具騰出空間
+{px} px from the notification area = 距通知區域 {px} 像素
+Custom ({px} px)... = 自訂（{px} 像素）...
+Custom... = 自訂...
+Pixels from the notification area (negative moves it closer): = 距通知區域的像素數（負值表示更靠近）：
+Enter a whole number from {min} to {max}. = 請輸入 {min} 至 {max} 之間的整數。
+Notify when charged to (saves the battery) = 充電至指定電量時通知（有助於延長電池壽命）
+Off = 關閉
+{name} is charged to {percent}%. Stopping around here helps the battery last longer. = {name} 已充至 {percent}%。在此附近停止充電有助於延長電池壽命。
+unplug the dongle and plug it back in = 拔下接收器再重新插上
+You can unplug it = 可以拔下
+Connection: {connection} = 連線方式：{connection}
+
+# Connection names
+Bluetooth = 藍牙
+USB dongle = USB 接收器
+Switch mode = Switch 模式
+Xbox Wireless = Xbox 無線
+Xbox Wireless / Bluetooth = Xbox 無線 / 藍牙
+PlayStation Link adapter = PlayStation Link 適配器
+Phone Link = 手機連結
+demo = 示範
+case = 充電盒

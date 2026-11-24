@@ -7,6 +7,7 @@
 // Protocol and model table from github.com/SteveWang92/peripheral-battery-tray (rog-battery,
 // MIT, itself based on G-Helper) and github.com/1gcat/BatteryTool.
 #include "drivers.h"
+#include "../i18n.h"
 
 #include <set>
 
@@ -323,14 +324,14 @@ void PollCetraOpen(PollContext& ctx) {
         } else {
             s.percent = left < 0 ? right : right < 0 ? left : (left < right ? left : right);
             std::wstring detail;
-            auto part = [&](const wchar_t* label, int v) {
+            auto part = [&](const std::wstring& label, int v) {
                 if (v < 0) return;
                 if (!detail.empty()) detail += L", ";
                 detail += label + std::to_wstring(v) + L"%";
             };
             part(L"L ", left);
             part(L"R ", right);
-            part(L"case ", box);
+            part(std::wstring(T(L"case")) + L" ", box);
             s.detail = detail;
         }
         ctx.out.push_back(s);

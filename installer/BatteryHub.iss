@@ -4,7 +4,7 @@
 ; Build with installer\build-installer.ps1 (or: ISCC /DAppVersion=1.2.3 installer\BatteryHub.iss).
 
 #ifndef AppVersion
-  #define AppVersion "1.0.0"
+  #define AppVersion "1.1.1"
 #endif
 #define Root ".."
 
@@ -134,7 +134,7 @@ begin
   Dir := RemoveBackslashUnlessRoot(Dir);
   if DirExists(Dir) then
   begin
-    Probe := AddBackslash(Dir) + '~wirelessbattery-write-test.tmp';
+    Probe := AddBackslash(Dir) + '~batteryhub-write-test.tmp';
     Result := SaveStringToFile(Probe, '', False);
     DeleteFile(Probe);
     exit;
@@ -150,7 +150,7 @@ begin
     end;
     Parent := ExtractFileDir(Parent);
   end;
-  Probe := AddBackslash(Parent) + '~wirelessbattery-write-test';
+  Probe := AddBackslash(Parent) + '~batteryhub-write-test';
   Result := CreateDir(Probe);
   if Result then
     RemoveDir(Probe);

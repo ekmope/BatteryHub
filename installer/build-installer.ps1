@@ -1,6 +1,6 @@
 # Builds dist\BatteryHub-Setup-<version>.exe and dist\BatteryHub-<version>-portable.zip.
 # Needs: BatteryHub.exe already built (make / build.bat) and Inno Setup 6 or 7 installed.
-param([string]$Version = "1.0.0")
+param([string]$Version = "1.1.1")
 $ErrorActionPreference = "Stop"
 $root = Split-Path $PSScriptRoot -Parent
 Set-Location $root

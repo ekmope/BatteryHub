@@ -5,7 +5,7 @@
 # shows the update but does not offer to install it.
 param(
     [Parameter(Mandatory = $true)][string]$Version,
-    [string]$KeyFile = (Join-Path $env:USERPROFILE '.wirelessbattery\release-key.wbk'),
+    [string]$KeyFile = (Join-Path $env:USERPROFILE '.batteryhub\release-key.wbk'),
     [string]$SumsFile,       # sign a local SHA256SUMS.txt instead of downloading the release's
     [string]$OutFile,        # default: SHA256SUMS.txt.sig in the current folder
     [Security.SecureString]$Password,  # for tests; normally asked for
@@ -13,13 +13,13 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'release-key.psm1') -Force
-$repo = 'krisgfx9/Wireless-Device-Battery-Monitor'
+$repo = 'ekmope/BatteryHub'
 if ($Version -notmatch '^\d+\.\d+\.\d+$') { throw 'Version must be MAJOR.MINOR.PATCH, for example 1.2.3.' }
 if (-not (Test-Path -LiteralPath $KeyFile)) { throw "No key file at $KeyFile. Create one with scripts\new-release-key.ps1." }
 if (-not $OutFile) { $OutFile = Join-Path (Get-Location) 'SHA256SUMS.txt.sig' }
 
 if (-not $SumsFile) {
-    $SumsFile = Join-Path ([IO.Path]::GetTempPath()) "WirelessBattery-SHA256SUMS-$Version.txt"
+    $SumsFile = Join-Path ([IO.Path]::GetTempPath()) "BatteryHub-SHA256SUMS-$Version.txt"
     $url = "https://github.com/$repo/releases/download/v$Version/SHA256SUMS.txt"
     Write-Host "Downloading $url"
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12

@@ -1,7 +1,7 @@
 # Builds BatteryHub.exe with MinGW-w64 (MSYS2 MINGW64/UCRT64 shell, or any mingw g++ on PATH).
 CXX      ?= g++
 WINDRES  ?= windres
-VERSION  ?= 0.0.0
+VERSION  ?= 1.1.1
 CHANNEL  ?= dev
 .DEFAULT_GOAL := BatteryHub.exe
 CXXFLAGS ?= -std=c++17 -Os -Wall -Wno-missing-field-initializers -ffunction-sections -fdata-sections \

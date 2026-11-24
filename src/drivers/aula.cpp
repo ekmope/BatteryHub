@@ -46,7 +46,7 @@
 //  * Battery request: message 09 87 00 00 01 00. Reply: 87 00 00 01 00 02 <level> <flags>; the 02
 //    is constant (it does not change with charging). The keyboard also pushes FE 05 <level> <flags>
 //    on its own. <flags> is 0x10 while charging on the cable and 0x00 on battery.
-// From a USB capture of AULA Hub (Wireless-Device-Battery-Monitor issue #201); read-only.
+// From a USB capture of AULA Hub (BatteryHub issue #201); read-only.
 //
 // AULA SC580 / SC580X mouse: USB cable 088D:062E, 2.4 GHz receiver 089D:062F. The vendor collection is
 // usage page FF02 / usage 0000 with 33-byte reports (report id 0 + 32-byte payload):

@@ -8,6 +8,7 @@
 #include "drivers.h"
 #include "bluetooth_identity.h"
 #include "ble_adverts.h"
+#include "../i18n.h"
 
 #include <setupapi.h>
 #include <cfgmgr32.h>
@@ -61,14 +62,14 @@ void ApplyFastPair(DeviceStatus& s, const FastPairBattery& b) {
         s.percent = disLo >= 0 ? disLo : chgLo;
         s.charging = disLo < 0;
     }
-    auto part = [&](const wchar_t* label, int pct, bool chg) {
+    auto part = [&](const std::wstring& label, int pct, bool chg) {
         if (pct < 0) return;
         if (!s.detail.empty()) s.detail += L", ";
         s.detail += label + std::to_wstring(pct) + L"%" + (chg ? L" \x26A1" : L"");
     };
     part(L"L ", b.left, b.leftChg);
     part(L"R ", b.right, b.rightChg);
-    part(L"case ", b.box, b.boxChg);
+    part(std::wstring(T(L"case")) + L" ", b.box, b.boxChg);
 }
 
 bool IsBatteryUsage(USHORT page, USAGE usage) {
