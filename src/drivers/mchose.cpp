@@ -20,6 +20,10 @@
 // Protocol: github.com/alexfrih/mchose-linux (PROTOCOL.md, recovered from MCHOSE's M HUB driver),
 // confirmed on a real MCHOSE L7 Ultra (5253:1020, receiver), MCHOSE A7 Ultra (RE) (5253:1020,
 // receiver, 0x11 channel) and MCHOSE A5 V2 Ultra (3837:100C, receiver).
+//   Plugged in with the USB-C data cable the A7 Ultra (RE) leaves the receiver id entirely and
+// enumerates as 3837:4110 - the same paired vid:model the receiver frame reports - with the same
+// FF01:0001 collection (65-byte feature reports on 0x11 and 0x12, verified on real hardware: link
+// 00 = cable, level 57, charging 1). Wired mode is therefore polled under that id as well.
 #include "drivers.h"
 
 namespace {
@@ -72,10 +76,19 @@ int Query(HidDev& d, const HidColl& c, BYTE rid, USHORT vid, USHORT pid, int& le
     return state;
 }
 
-void PollProduct(PollContext& ctx, USHORT vid, USHORT pid) {
+// The A7 Ultra (RE) alone when it is on the cable: no receiver is involved, so this id is probed
+// separately and is not part of the 3837 dongle list.
+const USHORT kCablePid = 0x4110;
+
+// Returns the product name when this collection answered as a status device, empty otherwise.
+// skipName drops the same mouse reached through its other link (receiver plus cable at once).
+std::wstring PollProduct(PollContext& ctx, USHORT vid, USHORT pid, const std::wstring& skipName = std::wstring()) {
     for (const HidColl* c : ctx.Find(vid, pid, [](const HidColl& c) { return c.page() == 0xFF01 && c.usage() == 0x0001 && c.featLen() >= 65; })) {
         HidDev d;
         if (!d.OpenFeatureOnly(*c)) continue;
+        std::wstring name = HidProduct(*c);
+        if (name.empty()) name = L"MCHOSE mouse";
+        if (!skipName.empty() && name == skipName) continue;
         int state = -1, level = 0, charging = 0, link = 0;
         for (BYTE rid : kReports) {
             int st = Query(d, *c, rid, vid, pid, level, charging, link);
@@ -87,9 +100,10 @@ void PollProduct(PollContext& ctx, USHORT vid, USHORT pid) {
         }
         if (state < 0) continue;  // not answering this protocol
         DeviceStatus s;
-        s.key = L"mchose:" + Hex4(pid);
-        s.name = HidProduct(*c);
-        if (s.name.empty()) s.name = L"MCHOSE mouse";
+        // One identity for one mouse: the cable id is the same device the receiver reports as
+        // 3837:4110, so it keeps the receiver key and the battery history stays in one series.
+        s.key = L"mchose:" + Hex4(pid == kCablePid ? 0x1020 : pid);
+        s.name = name;
         s.kind = DeviceKind::Mouse;
         if (state == 1) {
             s.percent = Clamp100(level);
@@ -102,15 +116,19 @@ void PollProduct(PollContext& ctx, USHORT vid, USHORT pid) {
             s.via = L"2.4 GHz receiver";
         }
         ctx.Add(s, vid, pid);
-        break;
+        return name;
     }
+    return std::wstring();
 }
 
 }  // namespace
 
 void PollMchose(PollContext& ctx) {
+    // Ask the cable id first, so that with the receiver still plugged in the mouse is listed once,
+    // over the link that is carrying the traffic.
+    const std::wstring cableName = PollProduct(ctx, kVidRealtek, kCablePid);
     for (auto [vid, pid] : ctx.Products(kVid)) {
-        PollProduct(ctx, vid, pid);
+        PollProduct(ctx, vid, pid, cableName);
     }
     for (USHORT pid : kRealtekPids) {
         if (ctx.IsClaimed(kVidRealtek, pid)) continue;

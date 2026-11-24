@@ -19,23 +19,37 @@ const std::vector<BYTE> a7UltraRe = {
 };
 // A report id that answers but carries nothing: the request echoed with an all-zero payload.
 std::vector<BYTE> EmptyEcho(BYTE rid) { return { rid, 0xF9 }; }
+// MCHOSE A7 Ultra (RE) plugged in over the USB-C data cable: it enumerates as 3837:4110 and answers
+// on 0x11 and 0x12 with this frame - link 00 (cable), level 57, charge status 1. Captured from the
+// device on 2026-11-24 with the cable connected.
+const std::vector<BYTE> a7UltraReCable = {
+    0x11, 0xF9, 0xC8, 0xC7, 0xEF, 0xBE, 0xE5, 0xFA, 0xFA, 0xFF, 0xFF, 0xC6, 0xFE, 0xC6, 0xFF
+};
 
 std::map<BYTE, std::vector<BYTE>> replies;
 std::vector<BYTE> asked;
 
-PollContext Poll(USHORT vid, USHORT pid, std::map<BYTE, std::vector<BYTE>> status) {
-    replies = status;
-    asked.clear();
+HidColl Coll(USHORT vid, USHORT pid) {
     HidColl c;
     c.vid = vid;
     c.pid = pid;
     c.caps.UsagePage = 0xFF01;
     c.caps.Usage = 1;
     c.caps.FeatureReportByteLength = 65;
+    return c;
+}
+
+PollContext Poll(std::vector<HidColl> colls, std::map<BYTE, std::vector<BYTE>> status) {
+    replies = status;
+    asked.clear();
     PollContext ctx;
-    ctx.colls = { c };
+    ctx.colls = colls;
     PollMchose(ctx);
     return ctx;
+}
+
+PollContext Poll(USHORT vid, USHORT pid, std::map<BYTE, std::vector<BYTE>> status) {
+    return Poll({ Coll(vid, pid) }, status);
 }
 }  // namespace
 
@@ -97,6 +111,24 @@ int main() {
     cable[12] = 0xFE;  // charge status 1
     ctx = Poll(0x5253, 0x1020, { { 0x12, cable } });
     assert(ctx.out.size() == 1 && ctx.out.front().via == L"USB cable" && ctx.out.front().charging);
+
+    // A7 Ultra (RE) on the USB-C data cable: enumerates as 3837:4110, no receiver id in sight. It
+    // keeps the receiver key so the battery history of one mouse stays in one series.
+    ctx = Poll(0x3837, 0x4110, { { 0x11, a7UltraReCable } });
+    assert(ctx.IsClaimed(0x3837, 0x4110) && ctx.out.size() == 1);
+    const auto& wired = ctx.out.front();
+    assert(wired.percent == 57 && wired.charging && !wired.asleep);
+    assert(wired.via == L"USB cable" && wired.key == L"mchose:1020");
+    assert(wired.name == L"MCHOSE A7 Ultra(RE)");
+    // Wired firmware also answers on the long report, so a 0x11-less reply is still a level.
+    ctx = Poll(0x3837, 0x4110, { { 0x12, a7UltraReCable } });
+    assert(ctx.out.size() == 1 && ctx.out.front().percent == 57);
+    // The 3837 dongle list must not swallow the cable id: a 3837:4110 dongle is not probed twice.
+    assert(Poll(0x3837, 0x4110, {}).out.empty());
+
+    // Cable in with the receiver still plugged in: one row, not two.
+    ctx = Poll({ Coll(0x3837, 0x4110), Coll(0x5253, 0x1020) }, { { 0x11, a7UltraReCable } });
+    assert(ctx.out.size() == 1 && ctx.out.front().via == L"USB cable");
 
     // Existing mice identify themselves with VID 5253; Realtek receivers can return 3837 or 41E4.
     auto pairedRealtek = l7UltraPlus;
