@@ -346,7 +346,14 @@ void PollBluetooth(PollContext& ctx) {
         // Bluetooth entries use the Windows container ID (s.key), never the display name.
         // Two Xbox controllers may both be named "Xbox Wireless Controller".
         // Preserve the name fallback for devices already reported by non-Bluetooth drivers.
-        if (IsDuplicateBluetoothDevice(s, ctx.out)) continue;
+        if (IsDuplicateBluetoothDevice(s, ctx.out)) {
+            // ...unless that earlier row is a dead link (receiver still plugged in while the device
+            // is on Bluetooth, so the vendor driver reads an asleep frame). The live reading wins.
+            auto stale = std::find_if(ctx.out.begin(), ctx.out.end(),
+                                      [&s](const DeviceStatus& other) { return StaleVendorRowFor(other, s); });
+            if (stale == ctx.out.end()) continue;
+            ctx.out.erase(stale);
+        }
         s.via = L"Bluetooth";
         s.percent = f.pct;
         auto cod = containerCod.find(cid);

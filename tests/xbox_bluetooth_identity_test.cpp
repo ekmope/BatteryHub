@@ -89,5 +89,22 @@ int main() {
     assert(!AddIfDistinct(colliding, Bt(L"{CCCCCCCC}", L"Xbox Wireless Controller", 95)));
     assert(colliding.size() == 1);
 
+    // A vendor row whose link is dead carries no level: the 2.4 GHz receiver stays plugged in while
+    // the device talks Bluetooth (MCHOSE A7 Ultra (RE): the receiver answers the status command with
+    // an all-zero block). The live Bluetooth reading must replace that row, not hide behind it.
+    DeviceStatus asleepVendor;
+    asleepVendor.key = L"mchose:1020";
+    asleepVendor.name = L"MCHOSE A7 Ultra(RE)";
+    asleepVendor.via = L"2.4 GHz receiver";
+    asleepVendor.asleep = true;
+    asleepVendor.percent = -1;
+    auto btMouse = Bt(L"{DDDDDDDD-1111-2222-3333-444444444444}", L"MCHOSE A7 Ultra(RE)", 99);
+    assert(StaleVendorRowFor(asleepVendor, btMouse));
+    // A different device, or a row that still carries a level, keeps its place.
+    assert(!StaleVendorRowFor(asleepVendor, Bt(L"{DDDDDDDD}", L"Some other mouse", 99)));
+    asleepVendor.asleep = false;
+    asleepVendor.percent = 58;
+    assert(!StaleVendorRowFor(asleepVendor, btMouse));
+
     std::puts("Xbox Bluetooth identity regression tests passed (two controllers, same ID, vendor fallback, JBL).");
 }
