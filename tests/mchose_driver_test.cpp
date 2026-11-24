@@ -121,7 +121,9 @@ int main() {
     assert(wired.via == L"USB cable" && wired.key == L"mchose:1020");
     assert(wired.name == L"MCHOSE A7 Ultra(RE)");
     // Wired firmware also answers on the long report, so a 0x11-less reply is still a level.
-    ctx = Poll(0x3837, 0x4110, { { 0x12, a7UltraReCable } });
+    auto cableOnLongReport = a7UltraReCable;
+    cableOnLongReport[0] = 0x12;
+    ctx = Poll(0x3837, 0x4110, { { 0x12, cableOnLongReport } });
     assert(ctx.out.size() == 1 && ctx.out.front().percent == 57);
     // The 3837 dongle list must not swallow the cable id: a 3837:4110 dongle is not probed twice.
     assert(Poll(0x3837, 0x4110, {}).out.empty());
